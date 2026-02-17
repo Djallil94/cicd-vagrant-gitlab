@@ -1,0 +1,27 @@
+stages: [build, deploy]
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+build:
+  stage: build
+  tags: [vm]
+  script:
+    - chmod +x ./gradlew || true
+    - ./gradlew clean assemble
+  artifacts:
+    paths:
+      - build/libs/*.jar
+    expire_in: 1 hour
+
+deploy:
+  stage: deploy
+  tags: [vm]
+  needs: [build]
+  script:
+    - JAR_FILE=$(ls build/libs/*.jar | head -n 1)
+    - echo "Déploiement du JAR: $JAR_FILE"
+    - sudo install -D -o myapp -g myapp -m 644 "$JAR_FILE" /opt/myapp/app.jar
+    - sudo systemctl restart myapp
+  after_script:
+    - curl -f http://localhost:8080 || echo "App OK"
